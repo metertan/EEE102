@@ -1,0 +1,588 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL; use IEEE.NUMERIC_STD.ALL;
+
+entity TopModule is
+Port ( clk : in STD_LOGIC; left_echo : in STD_LOGIC; goDown : in STD_LOGIC; goUp : in STD_LOGIC; goLeft : in STD_LOGIC; goRight : in STD_LOGIC; fire_button : in STD_LOGIC; lock_switch : in STD_LOGIC; left_trig : out STD_LOGIC; pwm : out STD_LOGIC; pwm1 : out STD_LOGIC; pwmf : out STD_LOGIC;
+fire : out STD_LOGIC; mode : in STD_LOGIC;
+seg: out std_logic_vector(6 downto 0);
+ 
+
+
+an: out std_logic_vector( 3 downto 0)); end TopModule;
+
+architecture TopModule_arch of TopModule is component sonar Port ( clk	: in STD_LOGIC;
+trig	: out STD_LOGIC; echo		: in STD_LOGIC;
+out1: out unsigned(3 downto 0); out0: out unsigned(3 downto 0)
+);
+end component;
+
+
+component Fire_servo Port(clk : in STD_LOGIC; mode:in std_logic;
+pwmf : out STD_LOGIC); end component;
+component servo_controller Port ( clk : in STD_LOGIC; goUp: in std_logic;
+goDown:in std_logic; mode:in std_logic; pwm : out STD_LOGIC);
+end component;
+component servo_controller2 port( clk : in STD_LOGIC; goLeft: in std_logic;
+goRight:in std_logic; mode:in std_logic; pwm1 : out STD_LOGIC);
+end component;
+ 
+
+
+component fireController Port ( cm1 : in unsigned (3 downto 0); mode : in STD_LOGIC;
+fire_button: in std_logic; fire : out STD_LOGIC);
+end component;
+
+
+component sevensegment Port ( td15,td14,td13,td12,td11,td10,td9,td8,td7,td6,td5,td4,td3,td2,td1,td0: in std_logic;
+clk : in STD_LOGIC; asegment,bsegment,csegment,dsegment,esegment,fsegment,gsegment: out std_logic; anode3, anode2, anode1, anode0: out std_logic);
+end component;
+
+
+
+
+signal left_cm1, left_cm0, right_cm1, right_cm0 : unsigned (3 downto 0); begin
+sonar1 : sonar port map( clk => clk, trig => left_trig, echo => left_echo, out1 => left_cm1, out0 => left_cm0);
+fireCont: fireController port map( mode => mode, fire_Button => fire_button, fire => fire, cm1 => left_cm1);
+fireservof: fire_servo Port map ( clk => clk, mode=> mode, pwmf=> pwmf); servo_cont: servo_controller port map( clk => clk, pwm => pwm, goUp=>goUp ,
+goDown=>goDown, mode=> mode );
+servo_cont2: servo_controller2 port map( clk => clk, pwm1 => pwm1, goLeft=> goLeft, goRight=> goRight, mode=> mode);
+se7en: sevensegment port map(td15 => right_cm1(3),td14 => right_cm1(2), td13 => right_cm1(1), td12 => right_cm1(0), td11 => right_cm0(3), td10 => right_cm0(2), td9 => right_cm0(1),
+td8 => right_cm0(0), td7 => left_cm1(3), td6 => left_cm1(2), td5 => left_cm1(1), td4 => left_cm1(0),
+
+td3 => left_cm0(3), td2 => left_cm0(2), td1 => left_cm0(1), td0 => left_cm0(0), clk
+=> clk,
+ 
+
+
+asegment => seg(0), bsegment => seg(1), csegment => seg(2), dsegment => seg(3),esegment => seg(4), fsegment => seg(5),
+
+gsegment => seg(6), anode0 =>an(0) ,anode1 => an(1), anode2 =>an(2) , anode3 =>
+an(3) );
+
+
+end TopModule_arch;
+
+
+Appendix C library IEEE;
+use IEEE.STD_LOGIC_1164.ALL; use IEEE.NUMERIC_STD.ALL;
+
+entity sonar is
+Port ( clk			: in STD_LOGIC; trig	: out STD_LOGIC; echo		: in STD_LOGIC;
+out1: out unsigned(3 downto 0); out0: out unsigned(3 downto 0)
+);
+end sonar;
+
+
+architecture Behavioral of sonar is
+signal count		: unsigned(16 downto 0) := (others => '0'); signal cm	: unsigned(15 downto 0) := (others => '0'); signal cm0 : unsigned(3 downto 0) := (others => '0');
+signal cm1 : unsigned(3 downto 0) := (others => '0');
+signal digit	: unsigned(3 downto 0) := (others => '0'); signal echo_last_Value : std_logic := '0';
+signal echo_synch	: std_logic := '0';
+ 
+
+
+signal echo_not_synch : std_logic := '0'; signal waitforCalc	: std_logic := '0';
+signal segment_count	: unsigned(15 downto 0) := (others => '0'); begin
+
+
+
+
+
+process(CLK) begin
+if rising_edge(CLK) then if waitforCalc = '0' then
+if count = 10000 then trig	<= '0';
+waitForCalc	<= '1';
+count	<= (others => '0'); else
+trig <= '1';
+count <= count+1; end if;
+elsif echo_last_value = '0' and echo_synch = '1' then count	<= (others => '0');
+cm <= (others => '0'); cm0 <= (others => '0'); cm1 <= (others => '0');
+elsif echo_last_value = '1' and echo_synch = '0' then out0 <= cm0;
+out1 <= cm1;
+elsif count = 5799 then
+ 
+
+
+if cm0 = 9 then
+cm0 <= (others => '0'); cm1 <= cm1 + 1;
+else
+cm0 <= cm0 + 1; end if;
+cm <= cm + 1;
+count <= (others => '0'); if cm = 3400 then
+waitforCalc <= '0'; end if;
+else
+count <= count + 1; end if;
+
+echo_last_value <= echo_synch; echo_synch <= echo_not_synch; echo_not_synch <= ECHO;
+end if;
+
+
+end process; end Behavioral; APPEDIX D
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL; use IEEE.NUMERIC_STD.ALL;
+
+entity fireController is
+ 
+
+
+Port ( cm1 : in unsigned (3 downto 0); mode : in STD_LOGIC; fire_button: in std_logic;
+fire : out STD_LOGIC); end fireController;
+
+architecture fireController_arch of fireController is begin
+process(mode, cm1, fire_button) begin
+if mode = '1' then fire <= fire_button;
+else
+if cm1 = "0101" or cm1 = "0110" then--range fire <= '1';
+else
+fire <= '0'; end if;
+end if; end process;
+
+
+
+end fireController_arch;
+APpendixE library IEEE;
+use IEEE.STD_LOGIC_1164.ALL; use IEEE.NUMERIC_STD.ALL;
+ 
+
+
+entity Fire_servo is
+Generic( duty_minf : integer := 100000; -- # of clk cycles need for min(1ms) duty (obtainede from 1ms/ 10^-8)
+duty_maxf : integer := 200000; -- # of clk cycles needed for max(2ms) duty
+
+count_maxf : integer := 2000000; -- # of clk cycles for a PWM (obtained by the division 20ms/
+10^-8)
+
+duty_deltaf : integer := 1000 -- decides the speed, the bigger it is, the faster the servo is, needs to be divider of 100000
+);
+Port ( clk : in STD_LOGIC; mode: in std_logic; pwmf : out STD_LOGIC);
+end Fire_servo;
+
+
+architecture Fire_servo_arch of Fire_servo is
+component firecontroller Port ( cm1 : in unsigned (3 downto 0); mode : in STD_LOGIC;
+fire_button: in std_logic; fire : out STD_LOGIC);
+end component;
+signal dutyf, new_dutyf: integer range duty_minf to duty_maxf; signal countf: integer range 0 to count_maxf;
+signal duty_updatedf: std_logic; signal modef: std_logic;
+signal firef: std_logic;
+signal cm1f: unsigned(3 downto 0); signal firecf: std_logic;
+begin
+zart : fireController port map( mode => modef, fire => firef, cm1 => cm1f, fire_button => firecf);
+ 
+
+
+process(clk)
+variable direction_upf : boolean := true; --whether we increment the duty begin
+if rising_edge(clk) then if firef<='1' then
+if duty_updatedf = '1' then if countf < dutyf then
+pwmf <= '1'; else
+pwmf <= '0'; end if;
+if countf < count_maxf then countf <= countf + 1;
+else
+countf <= 0;
+duty_updatedf <= '0'; dutyf <= new_dutyf;
+end if; end if;
+
+if countf < dutyf then--first send the pwm
+pwmf <= '1';
+else
+pwmf <= '0';
+end if;
+
+
+if countf = count_maxf then --now a PWM is completely sent, edit the duty for the
+next PWM
+ 
+
+
+countf <= 0;
+if dutyf = duty_minf then direction_upf := true;
+elsif dutyf = duty_maxf then direction_upf := false;
+end if;
+if direction_upf then
+dutyf <= dutyf + duty_deltaf; else
+dutyf <= dutyf - duty_deltaf; end if;
+end if;
+countf <= countf + 1;
+
+end if; end if;
+end process;
+end fire_servo_arch;
+APPENDIX F
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL; use IEEE.NUMERIC_STD.ALL;
+
+entity fireController is
+Port ( cm1 : in unsigned (3 downto 0); mode : in STD_LOGIC; fire_button: in std_logic;
+fire : out STD_LOGIC); end fireController;
+ 
+
+
+
+architecture fireController_arch of fireController is begin
+process(mode, cm1, fire_button) begin
+if mode = '1' then fire <= fire_button;
+else
+if cm1 = "0101" or cm1 = "0110" then--range fire <= '1';
+else
+fire <= '0'; end if;
+end if; end process;
+
+
+
+end fireController_arch; APPENDIX G
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL; use IEEE.NUMERIC_STD.ALL;
+
+entity servo_controller is
+Generic( duty_min : integer := 120000; -- # of clk cycles need for min(1ms) duty (obtainede from 1ms/ 10^-8)
+duty_max : integer := 180000; -- # of clk cycles needed for max(2ms) duty
+
+count_max : integer := 2000000; -- # of clk cycles for a PWM (obtained by the division 20ms/
+10^-8)
+ 
+
+
+duty_delta : integer := 500 -- decides the speed, the bigger it is, the faster the servo is, needs to be divider of 100000
+);
+Port ( clk : in STD_LOGIC; goUp: in std_logic; goDown:in std_logic; mode:in std_logic; pwm : out STD_LOGIC);
+end servo_controller;
+
+
+architecture servo_controller_arch of servo_controller is
+
+
+
+
+
+signal duty, new_duty: integer range duty_min to duty_max; signal count: integer range 0 to count_max;
+signal duty_updated: std_logic;
+
+
+begin
+process(clk)
+variable direction_up : boolean := true; --whether we increment the duty begin
+if rising_edge(clk) then
+
+
+if duty_updated = '1' then if count < duty then
+pwm <= '1'; else
+ 
+
+
+pwm <= '0'; end if;
+if count < count_max then count <= count + 1;
+else
+count <= 0;
+duty_updated <= '0'; duty <= new_duty;
+end if; end if;
+if mode='1' then
+if goUp = '1' and goDown = '0' then new_duty <= duty + duty_delta; duty_updated <= '1';
+elsif goUp = '0' and goDown = '1' then new_duty <= duty - duty_delta; duty_updated <= '1';
+end if; else
+if count < duty then--first send the pwm pwm <= '1';
+else
+pwm <= '0';
+end if;
+
+
+if count = count_max then --now a PWM is completely sent, edit the duty for the next PWM count <= 0;
+if duty = duty_min then
+ 
+
+
+direction_up := true; elsif duty = duty_max then
+direction_up := false; end if;
+if direction_up then
+duty <= duty + duty_delta; else
+duty <= duty - duty_delta; end if;
+end if;
+count <= count + 1; end if;
+end if; end process;
+end servo_controller_arch; APPENDIX H
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL; use IEEE.NUMERIC_STD.ALL;
+
+entity servo_controller2 is
+Generic( duty_min2 : integer := 100000; -- # of clk cycles need for min(1ms) duty (obtainede from 1ms/ 10^-8)
+duty_max2 : integer := 200000; -- # of clk cycles needed for max(2ms) duty
+
+count_max2 : integer := 2000000; -- # of clk cycles for a PWM (obtained by the division 20ms/
+10^-8)
+
+duty_delta2 : integer := 1000 -- decides the speed, the bigger it is, the faster the servo is, needs to be divider of 100000
+);
+ 
+
+
+Port ( clk : in STD_LOGIC; goLeft: in std_logic; goRight:in std_logic; mode:in std_logic; pwm1 : out STD_LOGIC);
+end servo_controller2;
+
+
+architecture servo_controller_arch2 of servo_controller2 is
+
+
+
+
+signal duty2, new_duty2: integer range duty_min2 to duty_max2; signal count2: integer range 0 to count_max2;
+signal duty_updated2: std_logic;
+
+
+begin
+process(clk)
+variable direction_up2 : boolean := true; --whether we increment the duty begin
+if rising_edge(clk) then
+
+
+if duty_updated2 = '1' then if count2 < duty2 then
+pwm1 <= '1'; else
+pwm1 <= '0'; end if;
+if count2 < count_max2 then count2 <= count2 + 1;
+ 
+
+
+else
+count2 <= 0;
+duty_updated2 <= '0'; duty2 <= new_duty2;
+end if; end if;
+if mode='1' then
+if goRight = '1' and goLeft = '0' then new_duty2 <= duty2 + duty_delta2; duty_updated2 <= '1';
+elsif goRight = '0' and goLeft = '1' then new_duty2 <= duty2 - duty_delta2; duty_updated2 <= '1';
+end if; else
+if count2 < duty2 then--first send the pwm pwm1 <= '1';
+else
+pwm1 <= '0';
+end if;
+
+
+if count2 = count_max2 then --now a PWM is completely sent, edit the duty for the next
+PWM
+
+count2 <= 0;
+if duty2 = duty_min2 then direction_up2 := true;
+elsif duty2 = duty_max2 then direction_up2 := false;
+ 
+
+
+end if;
+if direction_up2 then
+duty2 <= duty2 + duty_delta2; else
+duty2 <= duty2 - duty_delta2; end if;
+end if;
+count2 <= count2 + 1; end if;
+end if; end process;
+end servo_controller_arch2; APPENDIX H
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+
+#From this point on the following codes are cited from my earlier seven segment display lab and https://github.com/serkanozturk97/sentryGun/blob/m ain/constraints.xdc
+
+
+
+entity sevensegment is
+
+
+Port ( td15,td14,td13,td12,td11,td10,td9,td8,td7,td6,td5,td4,td3,td2,td1,td0: in std_logic; clk : in STD_LOGIC; asegment,bsegment,csegment,dsegment,esegment,fsegment,gsegment: out std_logic;
+ 
+
+
+anode3, anode2, anode1, anode0: out std_logic); end sevensegment;
+
+architecture sevensegment_arch of sevensegment is
+
+
+component segmentdecoder
+Port ( digit : in STD_LOGIC_VECTOR (3 downto 0); segconfig : out STD_LOGIC_VECTOR (6 downto 0));
+end component;
+
+
+component decoder
+Port ( x : in STD_LOGIC_VECTOR (1 downto 0); y : out STD_LOGIC_VECTOR (3 downto 0));
+end component;
+
+
+component multiplexer
+Port ( d0 : in STD_LOGIC_VECTOR (3 downto 0); d1 : in STD_LOGIC_VECTOR (3 downto 0); d2 : in STD_LOGIC_VECTOR (3 downto 0);
+d3 : in STD_LOGIC_VECTOR (3 downto 0); s: in STD_LOGIC_VECTOR(1 downto 0);
+dOut : out STD_LOGIC_VECTOR(3 downto 0)); end component;
+
+component counter
+Port ( clk : in STD_LOGIC; reset : in STD_LOGIC;
+countput : out STD_LOGIC_VECTOR (1 downto 0));
+ 
+
+
+end component;
+
+
+component clockdivider Port ( clk : in STD_LOGIC;
+reset: in STD_LOGIC; clkprime : out STD_LOGIC);
+end component;
+
+
+signal alldigits: std_logic_vector(15 downto 0); signal outputofdivider: std_logic;
+signal chosendigit: std_logic_vector(3 downto 0); signal tcountput: std_logic_vector(1 downto 0); signal segmentconfig: std_logic_vector(6 downto 0); signal anodes: std_logic_vector(3 downto 0);
+
+begin
+alldigits <= td15 & td14 & td13 & td12 & td11 & td10 & td9 & td8 & td7 & td6 & td5 & td4 & td3 & td2 & td1 & td0;
+cd: clockdivider port map( clk => clk, reset => '0', clkprime => outputofdivider);
+c: counter port map(clk => outputofdivider, reset => '0', countput => tcountput); -- lower => higher mux: multiplexer port map(
+d0 => alldigits(3 downto 0), d1 => alldigits (7 downto 4),
+d2 => alldigits (11 downto 8),
+d3 => alldigits (15 downto 12), s => tcountput,
+dOut => chosendigit);
+sd: segmentdecoder port map(
+ 
+
+
+digit => chosendigit, segconfig => segmentconfig);
+digitdecider: decoder port map( x => tcountput,
+y => anodes);
+--sacakland?r
+asegment <= segmentconfig(6); bsegment <= segmentconfig(5); csegment <= segmentconfig(4); dsegment <= segmentconfig(3); esegment <= segmentconfig(2); fsegment <= segmentconfig(1); gsegment <= segmentconfig(0); anode3 <= anodes(3);
+anode2 <= anodes(2); anode1 <= anodes(1); anode0 <= anodes(0); end sevensegment_arch;
+APPENDIX J
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL; use IEEE.STD_LOGIC_ARITH.ALL;
+USE IEEE.STD_LOGIC_UNSIGNED.ALL;
+
+
+entity clockdivider is
+
+
+Port ( clk : in STD_LOGIC; reset : in STD_LOGIC;
+ 
+
+
+clkprime : out STD_LOGIC); end clockdivider;
+
+architecture Behavioral of clockdivider is begin
+process(clk,reset)
+variable tmp: std_logic_vector(15 downto 0); begin
+if reset = '1' then tmp := "0000000000000000"; elsif rising_edge(clk) then
+tmp := tmp + '1'; end if;
+clkprime <= tmp(15); end process;
+end Behavioral; APPENDIX K
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL; use IEEE.STD_LOGIC_ARITH.ALL;
+USE IEEE.STD_LOGIC_UNSIGNED.ALL;
+
+
+entity counter is
+
+
+Port ( clk : in STD_LOGIC; reset : in STD_LOGIC;
+countput : out STD_LOGIC_VECTOR (1 downto 0)); end counter;
+ 
+
+
+architecture counter_arch of counter is
+
+
+signal tmp: std_logic_vector(1 downto 0); begin
+process(clk, reset) begin
+if reset = '1' then tmp <= "00";
+elsif rising_edge(clk) then tmp <= tmp + 1;
+end if; end process;
+countput <= tmp; end counter_arch; APPENDIX L
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+
+entity multiplexer is
+
+
+Port ( d0 : in STD_LOGIC_VECTOR (3 downto 0); d1 : in STD_LOGIC_VECTOR (3 downto 0); d2 : in STD_LOGIC_VECTOR (3 downto 0); d3 : in STD_LOGIC_VECTOR (3 downto 0); s: in STD_LOGIC_VECTOR(1 downto 0);
+dOut : out STD_LOGIC_VECTOR(3 downto 0)); end multiplexer;
+ 
+
+
+architecture multiplexer_arch of multiplexer is begin
+with s select dOut <= d0 when "00",
+d1 when "01",
+d2 when "10", d3 when others;
+end multiplexer_arch; APPENDIX N
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+
+entity segmentdecoder is
+
+
+Port ( digit : in STD_LOGIC_VECTOR (3 downto 0); segconfig : out STD_LOGIC_VECTOR (6 downto 0));
+end segmentdecoder;
+
+
+architecture segmentdecoder_arch of segmentdecoder is begin
+process(digit)
+--variable tmp: std_logic_vector(6 downto 0); begin
+case digit is
+when "0000" => segconfig <= "0000001";
+when "0001" => segconfig <= "1001111";
+when "0010" => segconfig <= "0010010";
+when "0011" => segconfig <= "0000110";
+ 
+
+
+when "0100" => segconfig <= "1001100";
+when "0101" => segconfig <= "0100100";
+when "0110" => segconfig <= "0100000";
+when "0111" => segconfig <= "0001111";
+when "1000" => segconfig <= "0000000"; when others => segconfig <= "0000100";
+--	when "1010" => segconfig <= "0001000";
+--	when "1011" => segconfig <= "1100000";
+--	when "1100" => segconfig <= "0110001";
+--	when "1101" => segconfig <= "1000010";
+--	when "1110" => segconfig <= "0110000";
+--		when others => segconfig <= "0111000"; end case;
+end process;
+end segmentdecoder_arch; library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+
+entity decoder is
+
+
+Port ( x : in STD_LOGIC_VECTOR (1 downto 0); y : out STD_LOGIC_VECTOR (3 downto 0));
+end decoder;
+
+
+architecture decoder_arch of decoder is
+
+
+begin
+ 
+
+
+process(x) begin
+if x = "00" then y <= "1110";--"0001";
+elsif x = "01" then y <= "1101";--"0010"; elsif x = "10" then y <= "1011";--"0100"; else y <= "0111";--"1000";
+end if; end process;
+end decoder_arch; APPENDIX O
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+
+entity decoder is
+
+
+Port ( x : in STD_LOGIC_VECTOR (1 downto 0); y : out STD_LOGIC_VECTOR (3 downto 0));
+end decoder;
+
+
+architecture decoder_arch of decoder is
+
+
+begin
+
+
+process(x) begin
+if x = "00" then y <= "1110";--"0001";
+elsif x = "01" then y <= "1101";--"0010"; elsif x = "10" then y <= "1011";--"0100";
+ 
+
+
+else y <= "0111";--"1000";
+end if; end process;
+end decoder_arch;
